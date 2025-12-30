@@ -9,7 +9,9 @@ services:
     restart: unless-stopped
     volumes:
       - .:/var/www
-      - /var/www/vendor
+      - vendor:/var/www/vendor
+      - storage:/var/www/storage
+      - bootstrap_cache:/var/www/bootstrap/cache
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
@@ -38,3 +40,8 @@ services:
 networks:
   laravel:
     external: true
+
+volumes:
+  vendor:
+  storage:
+  bootstrap_cache:
