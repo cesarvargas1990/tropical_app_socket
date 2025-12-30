@@ -1,53 +1,40 @@
-# Etapa Node para compilar frontend (Vite, npm run build)
+# ---------- Node build (Vite) ----------
 FROM node:20 AS node-builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 
+# ---------- PHP deps (Composer) ----------
+FROM composer:2 AS composer-builder
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
-# Etapa PHP con Composer + Laravel
+# ---------- Runtime ----------
 FROM php:8.3-fpm
 
-# Instalar dependencias necesarias para Laravel
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    curl \
-    git \
-    nano \
-    libzip-dev \
-    libicu-dev \
-    && docker-php-ext-install pdo_mysql mbstring zip exif pcntl intl
-
-# Copiar Composer desde imagen oficial
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+    libpng-dev libjpeg-dev libonig-dev libxml2-dev zip unzip curl git libzip-dev libicu-dev \
+    && docker-php-ext-install pdo_mysql mbstring zip exif pcntl intl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www
 
-# Copiar el proyecto
+# Copiar código
 COPY . .
 
-# Copiar solo los assets compilados por Vite
+# Copiar vendor ya instalado
+COPY --from=composer-builder /app/vendor /var/www/vendor
+
+# Copiar build de Vite (manifest.json incluido)
 COPY --from=node-builder /app/public/build /var/www/public/build
 
-# Instalar dependencias de Laravel (ya dentro del contenedor)
-RUN composer install  --optimize-autoloader --no-interaction --prefer-dist
-
-# Optimizar caches de Laravel (opcional, mejora tiempos de arranque en prod)
-RUN php artisan config:clear \
-    && php artisan route:clear \
-    && php artisan view:clear \
-    && php artisan cache:clear
-
-# Ajustar permisos para storage y bootstrap/cache
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
-    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+# Asegurar directorios + permisos
+RUN mkdir -p storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 9000
 CMD ["php-fpm"]
