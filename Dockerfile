@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 # ---------- PHP deps (Composer) ----------
-FROM composer:2 AS composer-builder
+FROM composer:2.7 AS composer-builder
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
