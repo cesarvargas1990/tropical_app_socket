@@ -13,10 +13,8 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       # IMPORTANTÍSIMO: en docker, 127.0.0.1 NO es mysql; usa el nombre del servicio
-      DB_HOST: mysql
-      DB_PORT: 3306
-    depends_on:
-      - mysql
+      
+   
     networks:
       - laravel
 
