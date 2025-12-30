@@ -14,6 +14,7 @@ services:
       APP_DEBUG: "false"
     volumes:
       - .:/var/www
+      - vendor:/var/www/vendor
       - public_build:/var/www/public/build
       - storage:/var/www/storage
       - bootstrap_cache:/var/www/bootstrap/cache
@@ -54,6 +55,7 @@ networks:
     external: true
 
 volumes:
+  vendor:
   public_build:
   storage:
   bootstrap_cache:
