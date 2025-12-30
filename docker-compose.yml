@@ -33,19 +33,7 @@ services:
     networks:
       - laravel
 
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-laravel-socket
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: blog_laravel_soketi
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - laravel
+
 
   soketi:
     image: quay.io/soketi/soketi:latest
