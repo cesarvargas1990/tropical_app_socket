@@ -17,40 +17,49 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: mbstring, intl, pdo_sqlite, sqlite3
           tools: composer:v2
+          extensions: mbstring, intl, pdo_sqlite, sqlite3
           coverage: none
-
-      - name: Copy .env
-        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
-
-      - name: Cache Composer
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.composer/cache/files
-            vendor
-          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-
 
       - name: Install Dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: Generate key
-        run: php artisan key:generate
+      # ✅ Crea .env SIEMPRE (sin depender de .env.example)
+      - name: Create .env for CI
+        run: |
+          cat > .env << 'EOF'
+          APP_NAME=Laravel
+          APP_ENV=testing
+          APP_KEY=
+          APP_DEBUG=false
+          APP_URL=http://localhost
 
-      - name: Directory Permissions
-        run: chmod -R 777 storage bootstrap/cache
+          LOG_CHANNEL=stack
+          LOG_LEVEL=debug
+
+          DB_CONNECTION=sqlite
+          DB_DATABASE=database/database.sqlite
+
+          CACHE_DRIVER=array
+          SESSION_DRIVER=array
+          QUEUE_CONNECTION=sync
+          MAIL_MAILER=log
+          EOF
 
       - name: Create Database (SQLite)
         run: |
           mkdir -p database
           touch database/database.sqlite
 
+      - name: Generate key
+        run: php artisan key:generate --force
+
+      - name: Directory Permissions
+        run: chmod -R 777 storage bootstrap/cache
+
       - name: Execute tests
         env:
           APP_ENV: testing
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
-        run: php artisan test
+        run: php artisan test --no-interaction
