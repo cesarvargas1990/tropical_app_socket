@@ -15,13 +15,16 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    // Apply CORS headers to all endpoints so browser blocks don't occur on web routes.
+    'paths' => ['*'],
 
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
         'http://147.93.1.252',
         'https://147.93.1.252',
+        'http://147.93.1.252:8001',
+        'https://147.93.1.252:8001',
     ],
 
     'allowed_origins_patterns' => [],
