@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # PHP
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -21,9 +22,35 @@ jobs:
           extensions: mbstring, intl, pdo_sqlite, sqlite3
           coverage: none
 
-      - name: Install Dependencies
+      # Node (para Vite)
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # Composer cache (opcional pero recomendado)
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.composer/cache/files
+            vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
+      # ✅ Build frontend (esto crea public/build/manifest.json)
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build assets (Vite)
+        run: npm run build
+
+      # ENV para CI (sin depender de .env.example)
       - name: Create .env for CI
         run: |
           cat > .env << 'EOF'
@@ -74,6 +101,8 @@ jobs:
       - name: Dump Laravel log on failure
         if: failure()
         run: |
+          echo "===== public/build ====="
+          ls -la public/build || true
           echo "===== storage/logs ====="
           ls -la storage/logs || true
           echo "===== laravel.log ====="
