@@ -90,6 +90,12 @@ jobs:
           php artisan route:clear || true
           php artisan view:clear || true
 
+      - name: Run lint (Pint)
+        run: composer lint
+
+      - name: Run format (Pint)
+        run: composer format
+
       - name: Execute tests
         env:
           APP_ENV: testing
