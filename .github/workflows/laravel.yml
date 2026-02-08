@@ -32,6 +32,12 @@ jobs:
           php -v
           composer -V
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
       - name: Prepare .env
         run: |
           if [ ! -f .env ]; then
@@ -50,6 +56,12 @@ jobs:
 
       - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build assets (Vite)
+        run: npm run build
 
       - name: Lint (Pint)
         run: ./vendor/bin/pint --test
