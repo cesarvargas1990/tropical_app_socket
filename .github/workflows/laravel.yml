@@ -6,110 +6,115 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: laravel-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  laravel-tests:
+  tests:
+    name: Tests (PHP 8.4)
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # PHP
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
+          php-version: "8.4"
           tools: composer:v2
-          extensions: mbstring, intl, pdo_sqlite, sqlite3
-          coverage: none
+          coverage: pcov
+          extensions: mbstring, pdo_sqlite
 
-      # Node (para Vite)
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+      - name: Show versions
+        run: |
+          php -v
+          composer -V
 
-      # Composer cache (opcional pero recomendado)
+      - name: Prepare .env
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
       - name: Cache Composer
         uses: actions/cache@v4
         with:
           path: |
-            ~/.composer/cache/files
             vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+            ~/.composer/cache/files
+          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-composer-
+            ${{ runner.os }}-php-8.4-composer-
 
-      - name: Install PHP dependencies
+      - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      # ✅ Build frontend (esto crea public/build/manifest.json)
-      - name: Install Node dependencies
-        run: npm ci
+      - name: Lint (Pint)
+        run: ./vendor/bin/pint --test
 
-      - name: Build assets (Vite)
-        run: npm run build
+      - name: Format check (Pint)
+        run: ./vendor/bin/pint --test
 
-      # ENV para CI (sin depender de .env.example)
-      - name: Create .env for CI
-        run: |
-          cat > .env << 'EOF'
-          APP_NAME=Laravel
-          APP_ENV=testing
-          APP_KEY=
-          APP_DEBUG=true
-          APP_URL=http://localhost
+      - name: Generate app key
+        run: php artisan key:generate --force
 
-          LOG_CHANNEL=stack
-          LOG_LEVEL=debug
-
-          DB_CONNECTION=sqlite
-          DB_DATABASE=database/database.sqlite
-
-          CACHE_DRIVER=array
-          SESSION_DRIVER=array
-          QUEUE_CONNECTION=sync
-          MAIL_MAILER=log
-          EOF
-
-      - name: Create Database (SQLite)
+      - name: Create SQLite database
         run: |
           mkdir -p database
           touch database/database.sqlite
 
-      - name: Generate key
-        run: php artisan key:generate --force
-
-      - name: Directory Permissions
+      - name: Fix permissions
         run: chmod -R 777 storage bootstrap/cache
 
-      - name: Clear caches
-        run: |
-          php artisan config:clear || true
-          php artisan cache:clear || true
-          php artisan route:clear || true
-          php artisan view:clear || true
-
-      - name: Run lint (Pint)
-        run: composer lint
-
-      - name: Run format (Pint)
-        run: composer format
-
-      - name: Execute tests
+      - name: Run migrations
         env:
           APP_ENV: testing
           APP_DEBUG: true
+
+          # DB sqlite para CI
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
-        run: php artisan test
 
-      - name: Dump Laravel log on failure
-        if: failure()
-        run: |
-          echo "===== public/build ====="
-          ls -la public/build || true
-          echo "===== storage/logs ====="
-          ls -la storage/logs || true
-          echo "===== laravel.log ====="
-          tail -n 300 storage/logs/laravel.log || true
+          # ✅ BLINDAJE anti-Redis (Laravel viejo + nuevo)
+          CACHE_DRIVER: array
+          CACHE_STORE: array
+
+          # ✅ Spatie Permission cache store
+          PERMISSION_CACHE_STORE: array
+
+          # ✅ evita sesiones/colas externas
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+
+          # opcional por seguridad
+          BROADCAST_DRIVER: log
+          MAIL_MAILER: log
+
+          # por si el .env trae cosas raras (no deberían usarse igual)
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+        run: php artisan migrate --force
+
+      - name: Run tests (with coverage)
+        env:
+          APP_ENV: testing
+          APP_DEBUG: true
+
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+
+          CACHE_DRIVER: array
+          CACHE_STORE: array
+          PERMISSION_CACHE_STORE: array
+
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: php artisan test --coverage-clover=coverage.xml
+
+      - name: SonarQube scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
