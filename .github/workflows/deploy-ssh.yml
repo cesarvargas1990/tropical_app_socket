@@ -1,0 +1,30 @@
+name: Deploy (SSH)
+
+on:
+  workflow_run:
+    workflows: ["Laravel"]
+    branches: ["main"]
+    types:
+      - completed
+
+concurrency:
+  group: deploy-ssh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd /home/${{ secrets.SSH_USER }}/tropical_app_socket
+            git pull
+            docker compose up --build -d
