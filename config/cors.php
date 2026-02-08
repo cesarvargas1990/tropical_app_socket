@@ -14,7 +14,7 @@ return [
     | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
     |
     */
-  
+
     // Apply CORS headers to all endpoints so browser blocks don't occur on web routes.
     'paths' => ['*'],
 

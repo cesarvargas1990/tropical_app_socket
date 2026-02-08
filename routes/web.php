@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Events\NewEvent;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,5 +20,6 @@ Route::get('/', function () {
 
 Route::get('/event', function () {
     NewEvent::dispatch(request()->msg);
+
     return 'Message sent!';
 });
